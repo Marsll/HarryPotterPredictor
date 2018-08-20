@@ -6,8 +6,8 @@ import numpy as np
 
 #data
 
-path = "./static/data/hp1.txt"
-with open(path) as f: # Use file to refer to the file object
+path = "./static/data/hp11.txt"
+with open(path, errors='ignore') as f: # Use file to refer to the file object
 
     data = f.read()
     print(len(data))
@@ -33,8 +33,9 @@ batch_size = 32
 
 token_sequence = sequence_categorical_column_with_hash_bucket(
     key="text", hash_bucket_size=number_of_categories, dtype=tf.string)
+print(token_sequence)
 # what does this even mean???
-token_emb = embedding_column(categorical_column=token_sequence, dimension=80)
+token_emb = embedding_column(categorical_column=token_sequence, dimension=8)
     
 
 def rnn_cell_fn(mode):
