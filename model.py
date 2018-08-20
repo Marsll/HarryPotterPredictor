@@ -1,78 +1,70 @@
 import tensorflow as tf
-from tensorflow.contrib.feature_column import sequence_categorical_column_with_hash_bucket
-from tensorflow.feature_column import embedding_column
-from tensorflow.contrib.estimator import RNNEstimator
-import numpy as np
-
-#data
-
-path = "./static/data/hp1.txt"
-with open(path) as f: # Use file to refer to the file object
-
-    data = f.read()
-    print(len(data))
-    chars = sorted(list(set(data)))
-    char_indices = dict((c, i) for i, c in enumerate(chars))
-    indices_char = dict((i, c) for i, c in enumerate(chars))
-
-    print(f'unique chars: {len(chars)}')
-
-    sequence_length = 40
-    step = 3
-    text_slices = []
-    text_slice_labels = []
-    for i in range(0, len(data) - sequence_length, step):
-        text_slices.append(data[i: i + sequence_length])
-        text_slice_labels.append(data[i + sequence_length])
-    print(f'num training examples: {len(text_slices)}')
-    features = np.array(text_slices).astype(np.str)
-    labels = np.array(text_slice_labels).astype(np.str)
-# should be calc not hard coded
-number_of_categories = len(chars)
-batch_size = 32
-
-token_sequence = sequence_categorical_column_with_hash_bucket(
-    key="text", hash_bucket_size=number_of_categories, dtype=tf.string)
-# what does this even mean???
-token_emb = embedding_column(categorical_column=token_sequence, dimension=80)
-    
-
-def rnn_cell_fn(mode):
-    cells = [tf.contrib.rnn.LSTMCell(size) for size in [32, 16]]
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        cells = [tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
-                 for cell in cells]
-    return tf.contrib.rnn.MultiRNNCell(cells)
+from sklearn.utils import shuffle
 
 
-estimator = RNNEstimator(
-    head=tf.contrib.estimator.regression_head(),
-    sequence_feature_columns=[token_emb],
-    rnn_cell_fn=rnn_cell_fn)
+class Model:
+    def __init__(self, num_chars, num_hidden, batch_size):
+        self.data = tf.placeholder(tf.float32, [None, None, num_chars])
+        self.target = tf.placeholder(tf.float32, [None, num_chars])
 
+        self.cell = tf.nn.rnn_cell.LSTMCell(num_hidden, state_is_tuple=True)
+        initial_state = self.cell.zero_state(batch_size,  dtype=tf.float32)
+        self.outputs, self.final_state = tf.nn.dynamic_rnn(
+            self.cell, self.data, initial_state=initial_state, dtype=tf.float32)
+        self.outputs = tf.transpose(self.outputs, [1, 0, 2])
+        self.last_output = self.outputs.__getitem__(-1)  # get last output
+        #self.last_output = self.final_state.h
+        self.weight = tf.Variable(tf.truncated_normal(
+            [num_hidden, int(self.target.get_shape()[1])]))
+        self.bias = tf.Variable(tf.constant(0.1, shape=[self.target.get_shape()[1]]))
+        self.prediction = tf.nn.softmax(tf.matmul(self.last_output, self.weight) + self.bias)
+        self.cross_entropy = - \
+                tf.reduce_sum(self.target * tf.log(tf.clip_by_value(self.prediction, 1e-10, 1.0)))
+        self.optimizer = tf.train.AdamOptimizer()
+        self.minimize = self.optimizer.minimize(self.cross_entropy)
+        self.mistakes = tf.not_equal(tf.argmax(self.target, 1), tf.argmax(self.prediction, 1))
+        self.error = tf.reduce_mean(tf.cast(self.mistakes, tf.float32))
 
-# Input builders
+        self.sess = tf.Session()
 
+        self.saver = tf.train.Saver()
 
-train_input_fn = tf.estimator.inputs.numpy_input_fn(
-    x={"text": features},
-    y=labels,
-    batch_size=batch_size,
-    num_epochs=None,
-    shuffle=True)
+    def train(self, features, labels, features_val, labels_val, num_epochs, batch_size):
+        init_op = tf.global_variables_initializer()
+        self.sess.run(init_op)
 
-estimator.train(input_fn=train_input_fn, steps=100)
+        losses = []
+        val_loss = []
+        for i in range(num_epochs):
+            shuffled_features, shuffled_labels = shuffle(features, labels)
+            self.run_epoch(batch_size, shuffled_features, shuffled_labels)
+            print(shuffled_labels.shape)
+            #print(self.predict(shuffled_features), shuffled_labels)
+            #incorrect = self.sess.run(self.error, {self.data: shuffled_features, self.target: shuffled_labels})
+            incorrect_val = self.sess.run(self.error, {self.data: features_val, self.target: labels_val})
+            #print('Epoch {:2d} TrainError {:3.1f}%'.format(i, 100 * incorrect))
+            #print('ValError {:3.1f}%'.format(100 * incorrect_val))
+            #losses.append(incorrect)
+            #val_loss.append(incorrect_val)
+            print('hey')
+            self.saver.save(self.sess, 'static/model/sess.ckpt')
+        return losses, val_loss
+            
+    def run_epoch(self, batch_size, shuffled_features, shuffled_labels):
+        num_of_batches = int(len(shuffled_features) / batch_size)
+        idx = 0
+        for i in range(num_of_batches):
+            # Construct batch
+            inp = shuffled_features[idx: idx + batch_size]
+            out = shuffled_labels[idx: idx + batch_size]
+            idx += batch_size
 
+            self.sess.run(self.minimize, {self.data: inp, self.target: out})
+            #print("hallo")
 
-def input_fn_eval():  # returns x, y
-    pass
+    def load(self, path):
+        self.saver.restore(path)
 
-
-metrics = estimator.evaluate(input_fn=input_fn_eval, steps=10)
-
-
-def input_fn_predict():  # returns x, None
-    pass
-
-
-predictions = estimator.predict(input_fn=input_fn_predict)
+    def predict(self, sequence):
+        return self.sess.run(self.prediction, {self.data: sequence})
+            
