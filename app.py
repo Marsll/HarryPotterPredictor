@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
+
 
 app = Flask(__name__)
 
@@ -11,9 +12,8 @@ def index():
 
 @app.route('/user_input', methods=['GET', 'POST'])
 def handle_input():
-    email = request.form
-    app.logger.info(email)
-    return redirect(url_for('index'))
+    message = request.form['input']
+    return jsonify(username=message)
 
 
 app.run(debug=True)
