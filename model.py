@@ -3,12 +3,16 @@ from sklearn.utils import shuffle
 
 
 class Model:
-    def __init__(self, num_chars, num_hidden, batch_size):
+    def __init__(self, chars, num_hidden):
+        self.chars = chars
+        num_chars = len(self.chars)
         self.data = tf.placeholder(tf.float32, [None, None, num_chars])
         self.target = tf.placeholder(tf.float32, [None, num_chars])
 
-        self.cell = tf.nn.rnn_cell.LSTMCell(num_hidden, state_is_tuple=True)
-        #initial_state = self.cell.zero_state(batch_size,  dtype=tf.float32)
+        self.lstm = tf.nn.rnn_cell.LSTMCell(num_hidden, state_is_tuple=True)
+        # dropout different for each cell
+        self.cell = tf.nn.rnn_cell.DropoutWrapper(self.lstm, output_keep_prob=0.5)
+        # initial_state = self.cell.zero_state(batch_size,  dtype=tf.float32)
         self.outputs, self.final_state = tf.nn.dynamic_rnn(
             self.cell, self.data, dtype=tf.float32)
         self.last_output = self.final_state.h
@@ -22,14 +26,18 @@ class Model:
         self.minimize = self.optimizer.minimize(self.cross_entropy)
         self.mistakes = tf.not_equal(tf.argmax(self.target, 1), tf.argmax(self.prediction, 1))
         self.error = tf.reduce_mean(tf.cast(self.mistakes, tf.float32))
-
-        self.sess = tf.Session()
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session( config=config)
 
         self.saver = tf.train.Saver()
-
-    def train(self, features, labels, features_val, labels_val, num_epochs, batch_size):
+    
+    def initialize(self):
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)
+
+    def train(self, features, labels, features_val, labels_val, num_epochs, batch_size):
+
 
         losses = []
         val_loss = []
@@ -56,9 +64,8 @@ class Model:
 
             self.sess.run(self.minimize, {self.data: inp, self.target: out})
 
-
     def load(self, path):
-        self.saver.restore(path)
+        self.saver.restore(self.sess, path)
 
     def predict(self, sequence):
         return self.sess.run(self.prediction, {self.data: sequence})
