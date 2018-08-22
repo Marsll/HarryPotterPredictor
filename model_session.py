@@ -25,7 +25,7 @@ with open(path) as f:  # Use file to refer to the file object
     print(f'unique chars: {len(chars)}')
 
     sequence_length = 40
-    step = 30
+    step = 300
     text_slices = []
     text_slice_labels = []
     for i in range(0, len(data) - sequence_length, step):
@@ -87,8 +87,8 @@ data = tf.placeholder(tf.float32, [None, None, char_len])
 target = tf.placeholder(tf.float32, [None, char_len])
 
 cell = tf.nn.rnn_cell.LSTMCell(num_hidden, state_is_tuple=True)
-initial_state = cell.zero_state(batch_size,  dtype=tf.float32) #initialize with zeros
-val, state = tf.nn.dynamic_rnn(cell, data, initial_state=initial_state, dtype=tf.float32)
+#initial_state = cell.zero_state(batch_size,  dtype=tf.float32) #initialize with zeros
+val, state = tf.nn.dynamic_rnn(cell, data, dtype=tf.float32)
 val = tf.transpose(val, [1, 0, 2])
 # last = tf.gather(val, int(val.get_shape()[0]) - 1) #get last output
 # last = tf.gather(val,  [-1]) #get last output

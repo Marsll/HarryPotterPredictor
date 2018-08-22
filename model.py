@@ -8,12 +8,10 @@ class Model:
         self.target = tf.placeholder(tf.float32, [None, num_chars])
 
         self.cell = tf.nn.rnn_cell.LSTMCell(num_hidden, state_is_tuple=True)
-        initial_state = self.cell.zero_state(batch_size,  dtype=tf.float32)
+        #initial_state = self.cell.zero_state(batch_size,  dtype=tf.float32)
         self.outputs, self.final_state = tf.nn.dynamic_rnn(
-            self.cell, self.data, initial_state=initial_state, dtype=tf.float32)
-        self.outputs = tf.transpose(self.outputs, [1, 0, 2])
-        self.last_output = self.outputs.__getitem__(-1)  # get last output
-        #self.last_output = self.final_state.h
+            self.cell, self.data, dtype=tf.float32)
+        self.last_output = self.final_state.h
         self.weight = tf.Variable(tf.truncated_normal(
             [num_hidden, int(self.target.get_shape()[1])]))
         self.bias = tf.Variable(tf.constant(0.1, shape=[self.target.get_shape()[1]]))
@@ -38,15 +36,12 @@ class Model:
         for i in range(num_epochs):
             shuffled_features, shuffled_labels = shuffle(features, labels)
             self.run_epoch(batch_size, shuffled_features, shuffled_labels)
-            print(shuffled_labels.shape)
-            #print(self.predict(shuffled_features), shuffled_labels)
-            #incorrect = self.sess.run(self.error, {self.data: shuffled_features, self.target: shuffled_labels})
+            incorrect = self.sess.run(self.error, {self.data: shuffled_features, self.target: shuffled_labels})
             incorrect_val = self.sess.run(self.error, {self.data: features_val, self.target: labels_val})
-            #print('Epoch {:2d} TrainError {:3.1f}%'.format(i, 100 * incorrect))
-            #print('ValError {:3.1f}%'.format(100 * incorrect_val))
-            #losses.append(incorrect)
-            #val_loss.append(incorrect_val)
-            print('hey')
+            print('Epoch {:2d} TrainError {:3.1f}%'.format(i, 100 * incorrect))
+            print('ValError {:3.1f}%'.format(100 * incorrect_val))
+            losses.append(incorrect)
+            val_loss.append(incorrect_val)
             self.saver.save(self.sess, 'static/model/sess.ckpt')
         return losses, val_loss
             
@@ -60,7 +55,7 @@ class Model:
             idx += batch_size
 
             self.sess.run(self.minimize, {self.data: inp, self.target: out})
-            #print("hallo")
+
 
     def load(self, path):
         self.saver.restore(path)
