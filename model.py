@@ -9,13 +9,18 @@ class Model:
         self.data = tf.placeholder(tf.float32, [None, None, num_chars])
         self.target = tf.placeholder(tf.float32, [None, num_chars])
 
-        self.lstm = tf.nn.rnn_cell.LSTMCell(num_hidden, state_is_tuple=True)
+        # self.lstm = tf.nn.rnn_cell.LSTMCell(num_hidden, state_is_tuple=True)
         # dropout different for each cell
-        self.cell = tf.nn.rnn_cell.DropoutWrapper(self.lstm, output_keep_prob=0.5)
+        # self.cell = tf.nn.rnn_cell.DropoutWrapper(self.lstm, output_keep_prob=0.5)
         # initial_state = self.cell.zero_state(batch_size,  dtype=tf.float32)
+        # self.multi_cell = tf.nn.rnn_cell.MultiRNNCell([self.cell, cell2], state_is_tuple=True)
+        self.cell = tf.nn.rnn_cell.MultiRNNCell(
+            [self.get_a_cell(num_hidden, 0.5) for _ in range(3)], state_is_tuple=True)
         self.outputs, self.final_state = tf.nn.dynamic_rnn(
             self.cell, self.data, dtype=tf.float32)
-        self.last_output = self.final_state.h
+        # only the 0th element is needed
+        self.last_output = self.final_state[-1].h
+        #self.last_output = self.outputs.__getitem__(-1)
         self.weight = tf.Variable(tf.truncated_normal(
             [num_hidden, int(self.target.get_shape()[1])]))
         self.bias = tf.Variable(tf.constant(0.1, shape=[self.target.get_shape()[1]]))
@@ -32,6 +37,12 @@ class Model:
 
         self.saver = tf.train.Saver()
     
+    def get_a_cell(self, num_hidden, keep_prob):
+        lstm = tf.nn.rnn_cell.LSTMCell(num_hidden, state_is_tuple=True)
+        drop = tf.nn.rnn_cell.DropoutWrapper(lstm, output_keep_prob=keep_prob)
+        return drop
+
+
     def initialize(self):
         init_op = tf.global_variables_initializer()
         self.sess.run(init_op)

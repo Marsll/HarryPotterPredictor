@@ -6,10 +6,11 @@ import os
 path = "./static/data/hp1.txt"
 with open(path) as f:  # Use file to refer to the file object
 
-    data = f.read()[:100000]
+    data = f.read()
     print(len(data))
     chars = sorted(list(set(data)))
     print(chars)
+    data = data[0:100000]
     num_chars = len(chars)
     char_indices = dict((c, i) for i, c in enumerate(chars))
     indices_char = dict((i, c) for i, c in enumerate(chars))
@@ -47,6 +48,7 @@ split = int(len(x)*0.8)
 
 batch_size = 100
 num_hidden = 128
+num_cells = 3 #implement
 num_epochs = 30
 features = x[:split]
 labels = y[:split]
@@ -57,9 +59,9 @@ test_in = x
 
 
 our_model = Model(chars=chars, num_hidden=num_hidden)
-path = 'static/model'
+path = 'static/model/sess.ckpt.index'
 if os.path.exists(path):
-    our_model.load(path + "/sess.ckpt")
+    our_model.load("static/model/sess.ckpt")
 else:
     print("initalized")
     our_model.initialize()
