@@ -80,4 +80,3 @@ class Model:
 
     def predict(self, sequence):
         return self.sess.run(self.prediction, {self.data: sequence})
-            
