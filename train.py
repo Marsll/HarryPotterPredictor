@@ -10,10 +10,10 @@ with open(path) as f:  # Use file to refer to the file object
     print(len(data))
     chars = sorted(list(set(data)))
     print(chars)
-    data = data[0:100000]
+    data = data[100000:200000]
     num_chars = len(chars)
-    char_indices = dict((c, i) for i, c in enumerate(chars))
-    indices_char = dict((i, c) for i, c in enumerate(chars))
+    #char_indices = dict((c, i) for i, c in enumerate(chars))
+    #indices_char = dict((i, c) for i, c in enumerate(chars))
 
     print(f'unique chars: {len(chars)}')
 

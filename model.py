@@ -8,14 +8,14 @@ class Model:
         num_chars = len(self.chars)
         self.data = tf.placeholder(tf.float32, [None, None, num_chars])
         self.target = tf.placeholder(tf.float32, [None, num_chars])
-
+        self.dropout = tf.placeholder(tf.float32, [1])
         # self.lstm = tf.nn.rnn_cell.LSTMCell(num_hidden, state_is_tuple=True)
         # dropout different for each cell
         # self.cell = tf.nn.rnn_cell.DropoutWrapper(self.lstm, output_keep_prob=0.5)
         # initial_state = self.cell.zero_state(batch_size,  dtype=tf.float32)
         # self.multi_cell = tf.nn.rnn_cell.MultiRNNCell([self.cell, cell2], state_is_tuple=True)
         self.cell = tf.nn.rnn_cell.MultiRNNCell(
-            [self.get_a_cell(num_hidden, 0.5) for _ in range(3)], state_is_tuple=True)
+            [self.get_a_cell(num_hidden, self.dropout[0]) for _ in range(3)], state_is_tuple=True)
         self.outputs, self.final_state = tf.nn.dynamic_rnn(
             self.cell, self.data, dtype=tf.float32)
         # only the 0th element is needed
@@ -55,8 +55,8 @@ class Model:
         for i in range(num_epochs):
             shuffled_features, shuffled_labels = shuffle(features, labels)
             self.run_epoch(batch_size, shuffled_features, shuffled_labels)
-            incorrect = self.sess.run(self.error, {self.data: shuffled_features, self.target: shuffled_labels})
-            incorrect_val = self.sess.run(self.error, {self.data: features_val, self.target: labels_val})
+            incorrect = self.sess.run(self.error, {self.data: shuffled_features, self.target: shuffled_labels, self.dropout: [1.0]})
+            incorrect_val = self.sess.run(self.error, {self.data: features_val, self.target: labels_val, self.dropout: [1.0]})
             print('Epoch {:2d} TrainError {:3.1f}%'.format(i, 100 * incorrect))
             print('ValError {:3.1f}%'.format(100 * incorrect_val))
             losses.append(incorrect)
@@ -73,10 +73,10 @@ class Model:
             out = shuffled_labels[idx: idx + batch_size]
             idx += batch_size
 
-            self.sess.run(self.minimize, {self.data: inp, self.target: out})
+            self.sess.run(self.minimize, {self.data: inp, self.target: out, self.dropout: [0.5]})
 
     def load(self, path):
         self.saver.restore(self.sess, path)
 
     def predict(self, sequence):
-        return self.sess.run(self.prediction, {self.data: sequence})
+        return self.sess.run(self.prediction, {self.data: sequence, self.dropout: [1.0]})
