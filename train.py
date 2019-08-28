@@ -1,6 +1,6 @@
-from model import Model
+from .model import Model
 import numpy as np
-from data_processing import one_hot_features, one_hot_labels
+from .data_processing import one_hot_features, one_hot_labels
 import os
 # Load data
 path = "./static/data/hp1.txt"

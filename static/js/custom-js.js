@@ -26,7 +26,7 @@ function sendPost()
 
     req.open('POST', '/user_input')
     req.setRequestHeader("Content-type", "application/x-www-form-urlencoded")
-    var text = document.getElementById("myForm").value
+    var text = document.getElementById("myInput").value
     var postVars = 'input='+ text
     req.send(postVars)
 }
